@@ -10,14 +10,19 @@ from typing import Any
 from apiup.mock import extract_mock_response
 from apiup.spec import Route
 
+try:
+    from litestar import Litestar
+    from litestar.handlers import HTTPRouteHandler
+    from litestar.response import Response as LitestarResponse
+except ImportError:  # pragma: no cover
+    Litestar = None  # type: ignore[assignment,misc]
+    HTTPRouteHandler = None  # type: ignore[assignment,misc]
+    LitestarResponse = None  # type: ignore[assignment]
+
 
 def build_mock_app(routes: list[Route], spec: dict[str, Any]) -> Any:
     """Return a Litestar ASGI app with one handler per spec route."""
-    try:
-        from litestar import Litestar
-        from litestar.handlers import HTTPRouteHandler
-        from litestar.response import Response
-    except ImportError:
+    if Litestar is None:
         print(
             "ERROR: litestar not installed.\nRun: pip install 'litestar[standard]'",
             file=sys.stderr,
@@ -33,9 +38,10 @@ def build_mock_app(routes: list[Route], spec: dict[str, Any]) -> Any:
         _body = body
         _status = status_code
 
-        # Litestar uses the same {param} syntax as OpenAPI — no conversion needed.
-        async def _handler(b: Any = _body, s: int = _status) -> Response:  # noqa: B023
-            return Response(content=b, status_code=s, media_type="application/json")
+        # Return type is Any — avoids NameError when Litestar inspects
+        # the handler signature in a scope where Response is not global.
+        async def _handler(b: Any = _body, s: int = _status) -> Any:  # noqa: B023
+            return LitestarResponse(content=b, status_code=s, media_type="application/json")
 
         handler = HTTPRouteHandler(
             path=_path,
