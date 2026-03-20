@@ -179,3 +179,29 @@ def test_default_spec_falls_back_to_yaml(tmp_path: Path, monkeypatch: pytest.Mon
 
     config = load_config()
     assert config.spec.endswith("spec.yaml")
+
+
+# ── validate.py tests ────────────────────────────────────────────────────────
+
+
+def test_validate_no_validator_installed(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """validate_spec returns True and warns when openapi-spec-validator is missing."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def mock_import(name: str, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if name.startswith("openapi_spec_validator"):
+            raise ImportError("not installed")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    from apiup.validate import validate_spec
+
+    result = validate_spec(MINIMAL_SPEC, "/fake/spec.yaml")
+    assert result is True
+    captured = capsys.readouterr()
+    assert "not installed" in captured.out
