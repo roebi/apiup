@@ -102,6 +102,6 @@ uv run ruff format .
 
 ## License
 
-CC BY-NC-SA 4.0 — see [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE).
 
 Part of the [roebi agent-skills](https://github.com/roebi/agent-skills) ecosystem.
