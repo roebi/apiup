@@ -9,5 +9,5 @@ Convention: reads ~/.openapi/spec.yaml by default.
     apiup --list
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "roebi"

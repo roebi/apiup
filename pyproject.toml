@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apiup"
-version = "0.1.0"
+version = "0.2.0"
 description = "Start a local mock REST API server from an OpenAPI 3.x spec. Convention: reads ~/.openapi/spec.yaml by default."
 readme = "README.md"
 license = { text = "MIT" }
