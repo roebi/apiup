@@ -75,6 +75,8 @@ def main() -> None:
     print(f"   Spec  : {cfg.spec}")
     print(f"   Mode  : {cfg.mode}")
     print(f"   Listen: http://{cfg.host}:{cfg.port}")
+    print(f"   Docs  : http://{cfg.host}:{cfg.port}/docs")
+    print(f"   Spec  : http://{cfg.host}:{cfg.port}/spec.json")
     print(f"   Routes: {len(routes)}")
     print()
     for r in routes:
@@ -84,7 +86,7 @@ def main() -> None:
     # ── Build + serve ────────────────────────────────────────────────────────
     from apiup.server import build_mock_app, serve
 
-    app = build_mock_app(routes, spec)
+    app = build_mock_app(routes, spec, cfg.spec)
     serve(app, host=cfg.host, port=cfg.port)
 
 
