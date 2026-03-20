@@ -20,6 +20,31 @@ except ImportError:  # pragma: no cover
     LitestarResponse = None  # type: ignore[assignment]
 
 
+def _make_handler(body: Any, status_code: int) -> Any:
+    """Return a handler function closed over body+status.
+
+    Defined at module level (not inside a loop) so Litestar's signature
+    inspection never sees a mutable default value — the values are captured
+    in the closure, not as default arguments.
+    """
+    import json
+
+    # Serialise once; send bytes to avoid Litestar re-encoding a dict default.
+    if body is None:
+        raw: bytes | None = None
+    else:
+        raw = json.dumps(body).encode()
+
+    async def _handler() -> Any:
+        return LitestarResponse(
+            content=raw,
+            status_code=status_code,
+            media_type="application/json",
+        )
+
+    return _handler
+
+
 def build_mock_app(routes: list[Route], spec: dict[str, Any]) -> Any:
     """Return a Litestar ASGI app with one handler per spec route."""
     if Litestar is None:
@@ -33,21 +58,14 @@ def build_mock_app(routes: list[Route], spec: dict[str, Any]) -> Any:
 
     for route in routes:
         status_code, body = extract_mock_response(route.responses, spec)
-        _method = route.method
-        _path = route.path
-        _body = body
-        _status = status_code
 
-        # Return type is Any — avoids NameError when Litestar inspects
-        # the handler signature in a scope where Response is not global.
-        async def _handler(b: Any = _body, s: int = _status) -> Any:  # noqa: B023
-            return LitestarResponse(content=b, status_code=s, media_type="application/json")
+        handler_fn = _make_handler(body, status_code)
 
         handler = HTTPRouteHandler(
-            path=_path,
-            http_method=_method,
-            status_code=_status,
-        )(_handler)
+            path=route.path,
+            http_method=route.method,
+            status_code=status_code,
+        )(handler_fn)
 
         handlers.append(handler)
 
