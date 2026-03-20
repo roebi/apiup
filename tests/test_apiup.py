@@ -119,3 +119,63 @@ def test_mock_no_example_returns_stub() -> None:
 def test_load_spec_missing_file() -> None:
     with pytest.raises(SystemExit):
         load_spec("/nonexistent/path/spec.yaml")
+
+
+# ── config.py tests ──────────────────────────────────────────────────────────
+
+
+def test_default_spec_prefers_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """spec.json is picked over spec.yaml when both exist."""
+    import apiup.config as cfg_mod
+
+    openapi_dir = tmp_path / ".openapi"
+    openapi_dir.mkdir()
+    (openapi_dir / "spec.json").write_text(
+        '{"openapi":"3.0.3","info":{"title":"T","version":"1"},"paths":{}}'
+    )
+    (openapi_dir / "spec.yaml").write_text(
+        "openapi: 3.0.3\ninfo:\n  title: T\n  version: '1'\npaths: {}"
+    )
+
+    monkeypatch.setattr(cfg_mod, "DEFAULT_CONFIG_DIR", openapi_dir)
+    monkeypatch.setattr(
+        cfg_mod,
+        "DEFAULT_SPEC_CANDIDATES",
+        [
+            openapi_dir / "spec.json",
+            openapi_dir / "spec.yaml",
+        ],
+    )
+    monkeypatch.setattr(cfg_mod, "DEFAULT_CONFIG", openapi_dir / "config.yaml")
+
+    from apiup.config import load_config
+
+    config = load_config()
+    assert config.spec.endswith("spec.json")
+
+
+def test_default_spec_falls_back_to_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """spec.yaml is used when spec.json does not exist."""
+    import apiup.config as cfg_mod
+
+    openapi_dir = tmp_path / ".openapi"
+    openapi_dir.mkdir()
+    (openapi_dir / "spec.yaml").write_text(
+        "openapi: 3.0.3\ninfo:\n  title: T\n  version: '1'\npaths: {}"
+    )
+
+    monkeypatch.setattr(cfg_mod, "DEFAULT_CONFIG_DIR", openapi_dir)
+    monkeypatch.setattr(
+        cfg_mod,
+        "DEFAULT_SPEC_CANDIDATES",
+        [
+            openapi_dir / "spec.json",
+            openapi_dir / "spec.yaml",
+        ],
+    )
+    monkeypatch.setattr(cfg_mod, "DEFAULT_CONFIG", openapi_dir / "config.yaml")
+
+    from apiup.config import load_config
+
+    config = load_config()
+    assert config.spec.endswith("spec.yaml")
