@@ -75,7 +75,7 @@ def build_mock_app(routes: list[Route], spec: dict[str, Any]) -> Any:
 
         handlers.append(handler)
 
-    return Litestar(route_handlers=handlers, debug=False)
+    return Litestar(route_handlers=handlers, openapi_config=None, debug=False)
 
 
 def serve(app: Any, host: str, port: int) -> None:
