@@ -2,25 +2,39 @@
 Config resolution for apiup.
 
 Convention:
-    ~/.openapi/spec.yaml      — default OpenAPI spec
+    ~/.openapi/spec.json      — default OpenAPI spec (JSON)
+    ~/.openapi/spec.yaml      — default OpenAPI spec (YAML, checked second)
     ~/.openapi/config.yaml    — optional defaults (port, host, mode, spec)
 """
 
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 DEFAULT_CONFIG_DIR: Path = Path.home() / ".openapi"
-DEFAULT_SPEC: Path = DEFAULT_CONFIG_DIR / "spec.yaml"
 DEFAULT_CONFIG: Path = DEFAULT_CONFIG_DIR / "config.yaml"
+
+# Auto-detection order: spec.json first, then spec.yaml
+DEFAULT_SPEC_CANDIDATES: list[Path] = [
+    DEFAULT_CONFIG_DIR / "spec.json",
+    DEFAULT_CONFIG_DIR / "spec.yaml",
+]
+
+
+def _default_spec() -> str:
+    """Return first existing default spec, or spec.json as the canonical fallback."""
+    for candidate in DEFAULT_SPEC_CANDIDATES:
+        if candidate.exists():
+            return str(candidate)
+    return str(DEFAULT_SPEC_CANDIDATES[0])
 
 
 @dataclass
 class ApiupConfig:
-    spec: str = str(DEFAULT_SPEC)
+    spec: str = field(default_factory=_default_spec)
     port: int = 8080
     host: str = "127.0.0.1"
     mode: str = "mock"
@@ -47,7 +61,7 @@ def load_config(
 ) -> ApiupConfig:
     """Resolve config from file + CLI overrides.
 
-    Precedence: CLI args > ~/.openapi/config.yaml > built-in defaults.
+    Precedence: CLI args > ~/.openapi/config.yaml > auto-detected default > spec.json fallback.
     """
     cfg = ApiupConfig()
 
