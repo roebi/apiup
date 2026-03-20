@@ -4,6 +4,8 @@ Build a Litestar ASGI app from a parsed OpenAPI spec (mock mode).
 
 from __future__ import annotations
 
+import json
+import re
 import sys
 from typing import Any
 
@@ -19,28 +21,33 @@ except ImportError:  # pragma: no cover
     HTTPRouteHandler = None  # type: ignore[assignment,misc]
     LitestarResponse = None  # type: ignore[assignment]
 
+# OpenAPI {param} → Litestar {param:str}
+_PARAM_RE = re.compile(r"\{(\w+)\}")
+
+# Status codes that must not have a response body
+_NO_BODY_CODES = frozenset({204, 304})
+
+
+def _openapi_path_to_litestar(path: str) -> str:
+    """Convert /skills/{skillId} → /skills/{skillId:str}."""
+    return _PARAM_RE.sub(r"{\1:str}", path)
+
 
 def _make_handler(body: Any, status_code: int) -> Any:
-    """Return a handler function closed over body+status.
-
-    Defined at module level (not inside a loop) so Litestar's signature
-    inspection never sees a mutable default value — the values are captured
-    in the closure, not as default arguments.
-    """
-    import json
-
-    # Serialise once; send bytes to avoid Litestar re-encoding a dict default.
-    if body is None:
-        raw: bytes | None = None
+    """Return a handler closed over body+status — no mutable defaults."""
+    if status_code in _NO_BODY_CODES:
+        # No-body response — return None, Litestar sends empty 204/304
+        async def _handler() -> None:
+            return None
     else:
-        raw = json.dumps(body).encode()
+        raw: bytes = b"null" if body is None else json.dumps(body).encode()
 
-    async def _handler() -> Any:
-        return LitestarResponse(
-            content=raw,
-            status_code=status_code,
-            media_type="application/json",
-        )
+        async def _handler() -> Any:  # type: ignore[misc]
+            return LitestarResponse(
+                content=raw,
+                status_code=status_code,
+                media_type="application/json",
+            )
 
     return _handler
 
@@ -58,14 +65,13 @@ def build_mock_app(routes: list[Route], spec: dict[str, Any]) -> Any:
 
     for route in routes:
         status_code, body = extract_mock_response(route.responses, spec)
-
-        handler_fn = _make_handler(body, status_code)
+        litestar_path = _openapi_path_to_litestar(route.path)
 
         handler = HTTPRouteHandler(
-            path=route.path,
+            path=litestar_path,
             http_method=route.method,
             status_code=status_code,
-        )(handler_fn)
+        )(_make_handler(body, status_code))
 
         handlers.append(handler)
 
