@@ -75,7 +75,6 @@ def main() -> None:
     print(f"   Spec  : {cfg.spec}")
     print(f"   Mode  : {cfg.mode}")
     print(f"   Listen: http://{cfg.host}:{cfg.port}")
-    print(f"   Docs  : http://{cfg.host}:{cfg.port}/schema/swagger")
     print(f"   Routes: {len(routes)}")
     print()
     for r in routes:
